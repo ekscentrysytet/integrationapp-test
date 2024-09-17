@@ -5,7 +5,7 @@ interface WorkflowStepBase {
 
 export type Operator = "eq" | "gt";
 
-type JsonPrimitive = string | number | boolean | null;
+export type JsonPrimitive = string | number | boolean | null;
 export type Assert = Record<string, Record<Operator, JsonPrimitive>>;
 
 export interface ConditionStep extends WorkflowStepBase {

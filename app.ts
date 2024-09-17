@@ -1,23 +1,22 @@
-import { Request } from "express";
-import { ActionStep, CompareFunction, ConditionStep, Nullable, Operator, RequestBody, RequestResult, WorkflowStep } from "./types";
+import { ActionStep, Assert, CompareFunction, ConditionStep, JsonPrimitive, Nullable, Operator, RequestBody, RequestResult, WorkflowStep } from "./types";
 
-const express = require('express');
-const bodyParser = require('body-parser');
-const _ = require('lodash');
+import express, { Express, Request, Response } from 'express';
+import bodyParser from 'body-parser';
+import _ from 'lodash';
 
-const app = express()
+const app: Express = express()
 
 app.use(express.json());
 app.use(bodyParser());
 
-const isInputDefinition = (key: string) => key === "$input";
-const isParamDefinition = (key: string) => key.includes?.("$") && !isInputDefinition(key);
+const isInputDefinition = (key: JsonPrimitive) => key === "$input";
+const isParamDefinition = (key: JsonPrimitive) => typeof key === "string" && key.includes("$") && !isInputDefinition(key);
 
 type SomeInput = RequestBody["someInput"];
 
 const getParamValue = _.cond([
-  [isInputDefinition, (_: string) => (input: SomeInput) => input],
-  [isParamDefinition, (key: string) => (input: SomeInput, results: RequestResult) => _.get(results, key.replace("$", ""))],
+  [isInputDefinition, (_: JsonPrimitive) => (input: SomeInput) => input],
+  [isParamDefinition, (key: JsonPrimitive) => (input: SomeInput, results: RequestResult) => _.get(results, key?.replace("$", ""))],
   [_.stubTrue, () => _.identity]
 ]);
 
@@ -46,7 +45,7 @@ app.post('/', async (req: Request<any, RequestResult, RequestBody>, res: Respons
     }
 
     if (isConditionStep(step)) {
-      const { assert } = step; 
+      const { assert }: { assert: Assert } = step; 
 
       const operatorsMap: Record<Operator, CompareFunction> = {
         "eq": (a, b) => a === b,
@@ -89,14 +88,21 @@ app.post('/', async (req: Request<any, RequestResult, RequestBody>, res: Respons
 
       const data = await response.json();
 
-      _.set(results, result_key, data);
+      if (result_key) {
+        _.set(results, result_key, data);
+      }
 
       stepId = step.next;
     }
   }
 
-  // for some reason @types/express does not expect any params for `json` method
   return res.json(results);
+})
+
+const PORT = process.env.PORT || 3000;
+
+app.listen(PORT, () => {
+  console.log(`Server is running on port ${PORT}`);
 })
 
 /*
